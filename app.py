@@ -54,6 +54,28 @@ depts = pd.DataFrame([
 dept_keys = depts["dept"].tolist()
 headcount_map = dict(zip(depts["dept"], depts["headcount"]))
 
+# Aircraft → hangar class (keep in sync with your planner rules)
+def classify_aircraft(model: str) -> str:
+    s = (model or "").upper()
+    def startswith_any(*prefs): 
+        return any(s.startswith(p) for p in prefs)
+
+    # Widebody / heavy twins
+    if startswith_any("B777", "B747", "A340", "A330", "B767"):
+        return "HEAVY"
+
+    # Mid narrow-body class (separate track in your planner)
+    if startswith_any("B757"):
+        return "M757"
+
+    # Narrow-body / small
+    if startswith_any("B737", "BBJ", "ACJ", "A319", "A320", "A321"):
+        return "SMALL"
+
+    # Fallback
+    return "SMALL"
+
+
 # Confirmed / awarded programs
 confirmed = pd.DataFrame([
     {
