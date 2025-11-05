@@ -36,94 +36,103 @@ st.sidebar.markdown("---")
 wip_limit_large = st.sidebar.slider("WIP limit: max concurrent LARGE interiors", 1, 6, 3, 1)
 
 # -------------------------------
-# Example VIP completions dataset
+# Example VIP completions dataset (realistic VIP/VVIP flavor)
 # -------------------------------
-# Departments & headcounts (very rough demo values)
+
+# Depts & headcounts (ballpark for a mid-size VIP completions center)
 depts = pd.DataFrame([
-    {"dept": "Interiors",  "headcount": 12},
-    {"dept": "Engineering","headcount": 8},
-    {"dept": "Cabinet",    "headcount": 7},
-    {"dept": "Upholstery", "headcount": 6},
+    {"dept": "Interiors",  "headcount": 14},
+    {"dept": "Engineering","headcount": 9},
+    {"dept": "Cabinet",    "headcount": 8},
+    {"dept": "Upholstery", "headcount": 7},
     {"dept": "Finish",     "headcount": 6},
     {"dept": "Avionics",   "headcount": 10},
-    {"dept": "Structures", "headcount": 6},
-    {"dept": "Maintenance","headcount": 10},
-    {"dept": "Inspection", "headcount": 7},
+    {"dept": "Structures", "headcount": 7},
+    {"dept": "Maintenance","headcount": 11},
+    {"dept": "Inspection", "headcount": 8},
 ])
-
 dept_keys = depts["dept"].tolist()
 headcount_map = dict(zip(depts["dept"], depts["headcount"]))
 
-# Helper: classify size for WIP
-def classify_aircraft(model: str) -> str:
-    s = (model or "").upper()
-    if any(k in s for k in ["B777", "A330", "A340", "B747", "A350"]):
-        return "LARGE"
-    if any(k in s for k in ["B757"]):
-        return "M757"
-    # Biz/VIP narrowbody
-    return "SMALL"
-
-# Confirmed / in-execution programs (dates in ISO)
+# Confirmed / awarded programs
 confirmed = pd.DataFrame([
     {
         "number": "P8801", "customer": "Alpha Star", "aircraft": "B777-200LR VIP",
-        "scope": "Green Completion – full cabin + CMS/IFE + monuments",
-        "value_usd": 138_000_000,
-        "induction": "2025-10-27", "delivery": "2026-07-31",
-        # hours by dept (demo apportionment)
-        "Interiors": 34000, "Engineering": 11000, "Cabinet": 9000, "Upholstery": 6200, "Finish": 8000,
-        "Avionics": 5200, "Structures": 2500, "Maintenance": 4200, "Inspection": 2200,
-        # supply-chain gate (workdays)
-        "parts_p50": 60, "parts_p90": 90, "single_source": True,
+        "scope": "Green Completion – full cabin, shower, CMS/IFE, monuments",
+        "value_usd": 145_000_000,
+        "induction": "2025-11-17", "delivery": "2026-08-14",
+        # Hours by dept (critical path driven by Interiors/Cabinet/Engineering)
+        "Interiors": 42000, "Engineering": 16000, "Cabinet": 11000, "Upholstery": 8000, "Finish": 10000,
+        "Avionics": 7000, "Structures": 5000, "Maintenance": 6000, "Inspection": 3200,
+        # Supply-chain (veneer, monuments, custom CMS components)
+        "parts_p50": 75, "parts_p90": 110, "single_source": True,
     },
     {
         "number": "P8744", "customer": "Sands", "aircraft": "BBJ2",
-        "scope": "Cabin refresh + CMS/IFE refit + Starlink",
-        "value_usd": 32_000_000,
-        "induction": "2025-11-17", "delivery": "2026-03-10",
-        "Interiors": 12000, "Engineering": 3800, "Cabinet": 2500, "Upholstery": 2100, "Finish": 2600,
-        "Avionics": 3000, "Structures": 600, "Maintenance": 1800, "Inspection": 900,
-        "parts_p50": 35, "parts_p90": 55, "single_source": True,
+        "scope": "Cabin refresh + monuments + CMS/IFE refit + Starlink",
+        "value_usd": 33_000_000,
+        "induction": "2025-12-01", "delivery": "2026-03-31",
+        "Interiors": 12500, "Engineering": 3800, "Cabinet": 2800, "Upholstery": 2200, "Finish": 2600,
+        "Avionics": 3200, "Structures": 700, "Maintenance": 1900, "Inspection": 1000,
+        "parts_p50": 40, "parts_p90": 65, "single_source": True,
     },
     {
         "number": "P8795", "customer": "Valkyrie", "aircraft": "ACJ319",
-        "scope": "Bedroom reconfig + monuments + certs",
-        "value_usd": 21_000_000,
-        "induction": "2025-12-08", "delivery": "2026-04-15",
-        "Interiors": 9000, "Engineering": 2600, "Cabinet": 1700, "Upholstery": 1200, "Finish": 1650,
-        "Avionics": 1100, "Structures": 500, "Maintenance": 1200, "Inspection": 700,
-        "parts_p50": 28, "parts_p90": 45, "single_source": False,
+        "scope": "Bedroom reconfig + monuments + cert updates",
+        "value_usd": 22_000_000,
+        "induction": "2025-12-15", "delivery": "2026-04-30",
+        "Interiors": 9500, "Engineering": 2900, "Cabinet": 1900, "Upholstery": 1400, "Finish": 1700,
+        "Avionics": 1200, "Structures": 600, "Maintenance": 1300, "Inspection": 750,
+        "parts_p50": 30, "parts_p90": 50, "single_source": False,
+    },
+    {
+        "number": "P8733", "customer": "Kaiser", "aircraft": "B737-700 (BBJ)",
+        "scope": "Starlink retrofit + CMS head-end swap (off-site)",
+        "value_usd": 7_500_000,
+        "induction": "2025-11-24", "delivery": "2025-12-20",
+        "Interiors": 4200, "Engineering": 1200, "Cabinet": 300, "Upholstery": 250, "Finish": 400,
+        "Avionics": 3100, "Structures": 300, "Maintenance": 900, "Inspection": 400,
+        "parts_p50": 21, "parts_p90": 35, "single_source": False,
+        "offsite": True,  # informative only in this demo
+    },
+    {
+        "number": "P8788", "customer": "NEP", "aircraft": "B767-300ER VIP",
+        "scope": "Cabin refurb + monuments + IFE upgrade",
+        "value_usd": 48_000_000,
+        "induction": "2026-01-06", "delivery": "2026-06-15",
+        "Interiors": 18500, "Engineering": 5200, "Cabinet": 3800, "Upholstery": 2600, "Finish": 3400,
+        "Avionics": 4800, "Structures": 1800, "Maintenance": 2500, "Inspection": 1400,
+        "parts_p50": 55, "parts_p90": 85, "single_source": True,
     },
 ])
 
-# Pipeline / not yet won (stage = PDR/CDR/FDR)
+# Pipeline (not yet won): stage = PDR/CDR/FDR
 pipeline = pd.DataFrame([
     {
         "number": "LQ901", "customer": "Polaris", "aircraft": "A330-200 VIP",
         "scope": "Green Completion – full cabin + shower + CMS/IFE",
-        "value_usd": 155_000_000, "stage": "PDR",
-        "target_induction": "2026-02-02", "duration_weeks_guess": 42,
-        "Interiors": 39000, "Engineering": 12500, "Cabinet": 9800, "Upholstery": 7000, "Finish": 9000,
-        "Avionics": 6500, "Structures": 3200, "Maintenance": 4500, "Inspection": 2400,
-        "parts_p50": 70, "parts_p90": 100, "single_source": True,
+        "value_usd": 158_000_000, "stage": "PDR",
+        "target_induction": "2026-02-02", "duration_weeks_guess": 44,
+        "Interiors": 41000, "Engineering": 13000, "Cabinet": 9800, "Upholstery": 7200, "Finish": 9000,
+        "Avionics": 6600, "Structures": 3200, "Maintenance": 4500, "Inspection": 2500,
+        "parts_p50": 80, "parts_p90": 115, "single_source": True,
     },
     {
         "number": "LQ912", "customer": "Celestial", "aircraft": "BBJ",
         "scope": "Cabin refresh + monuments + CMS upgrade",
-        "value_usd": 28_000_000, "stage": "CDR",
-        "target_induction": "2026-01-12", "duration_weeks_guess": 18,
-        "Interiors": 10500, "Engineering": 3200, "Cabinet": 2100, "Upholstery": 1800, "Finish": 2000,
-        "Avionics": 1700, "Structures": 500, "Maintenance": 1400, "Inspection": 800,
-        "parts_p50": 30, "parts_p90": 50, "single_source": True,
+        "value_usd": 29_000_000, "stage": "CDR",
+        "target_induction": "2026-01-12", "duration_weeks_guess": 20,
+        "Interiors": 11000, "Engineering": 3400, "Cabinet": 2300, "Upholstery": 1800, "Finish": 2000,
+        "Avionics": 1900, "Structures": 600, "Maintenance": 1500, "Inspection": 850,
+        "parts_p50": 35, "parts_p90": 55, "single_source": True,
     },
     {
         "number": "LQ927", "customer": "Ty Air", "aircraft": "ACJ320",
         "scope": "CMS/IFE refit + monuments cert update",
-        "value_usd": 36_000_000, "stage": "FDR",
-        "target_induction": "2025-12-15", "duration_weeks_guess": 20,
-        "Interiors": 11500, "Engineering": 3600, "Cabinet": 2300, "Upholstery": 1700, "Finish": 2200,
-        "Avionics": 2500, "Structures": 600, "Maintenance": 1600, "Inspection": 900,
+        "value_usd": 36_500_000, "stage": "FDR",
+        "target_induction": "2025-12-15", "duration_weeks_guess": 22,
+        "Interiors": 12000, "Engineering": 3800, "Cabinet": 2400, "Upholstery": 1800, "Finish": 2200,
+        "Avionics": 2600, "Structures": 650, "Maintenance": 1700, "Inspection": 950,
         "parts_p50": 32, "parts_p90": 48, "single_source": False,
     },
 ])
